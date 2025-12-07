@@ -1,0 +1,64 @@
+.navbar-inverse {
+    background: #2e3131!important;
+}
+
+.chosen-container-multi .chosen-choices li.search-field input[type="text"] {
+    color: #fff;
+}
+
+.panel-body + .panel-body, .panel-body + .table, .panel-body + .table-responsive, .panel-body.has-top-border {
+    border-top: 1px solid rgba(255,255,255,0.2)!important;;
+}
+
+.chosen-container-single .chosen-single span {
+    color: #f2f1ef!important;
+}
+
+.dle_theme_dark .panel, .dle_theme_dark .modal-content {
+    color: #ffffff!important;
+    background-color: #2e3131!important;
+}
+
+.chosen-container-single .chosen-search {
+    background: #403c3c!important;
+}
+
+.chosen-container-single .chosen-search input[type=text] {
+    color: #000!important;
+}
+
+body.dle_theme_dark {
+    background-color: #545454!important;
+}
+
+.section_icon {
+    background: transparent!important;
+    box-shadow: none!important;
+    -webkit-box-shadow: none!important;
+}
+
+.gray-theme.fr-box.fr-basic .fr-wrapper {
+    background: #2e3131!important;
+}
+
+label.status {
+    background: #2e3131;
+}
+
+.widget-four {
+    background: #2e3131!important;
+}
+
+.progress-dle-filter {
+    background-color: #191e3a;
+    box-shadow: unset!important;
+}
+
+.widget-four .widget-heading h5 {
+    color: #fff!important;
+}
+
+.inputLazy, .textLazy {
+    background: #2e3131;
+    color: #fff;
+}

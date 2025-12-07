@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dleplugin>
+	<name>CDN Video Hub - модуль для работы с базой видео</name>
+	<description>by https://lazydev.pro/</description>
+	<icon></icon>
+	<version>1.4.1</version>
+	<dleversion>13.0</dleversion>
+	<versioncompare>greater</versioncompare>
+	<upgradeurl></upgradeurl>
+	<filedelete>0</filedelete>
+	<needplugin></needplugin>
+	<mnotice>0</mnotice>
+	<mysqlinstall><![CDATA[INSERT INTO `{prefix}_admin_sections` (`name`, `title`, `descr`, `icon`, `allow_groups`) VALUES ('cdnvideohub', 'CDN Video Hub', 'Модуль для работы с базой видео', '', '1');
+CREATE TABLE IF NOT EXISTS `{prefix}_cdnvideohub_license` (
+`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+`news_id` INT UNSIGNED NOT NULL,
+`aggregator` ENUM('kinopoisk','imdb','mdl','mal') NOT NULL,
+`aggregator_external_id` VARCHAR(64) NOT NULL,
+`title` VARCHAR(255) NOT NULL,
+`created_at` INT UNSIGNED NOT NULL,
+`updated_at` INT UNSIGNED NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `uniq_news_agg` (`news_id`, `aggregator`),
+KEY `idx_agg_ext` (`aggregator`, `aggregator_external_id`),
+KEY `idx_news` (`news_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;]]></mysqlinstall>
+	<mysqlupgrade><![CDATA[CREATE TABLE IF NOT EXISTS `{prefix}_cdnvideohub_license` (
+`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+`news_id` INT UNSIGNED NOT NULL,
+`aggregator` ENUM('kinopoisk','imdb','mdl','mal') NOT NULL,
+`aggregator_external_id` VARCHAR(64) NOT NULL,
+`title` VARCHAR(255) NOT NULL,
+`created_at` INT UNSIGNED NOT NULL,
+`updated_at` INT UNSIGNED NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `uniq_news_agg` (`news_id`, `aggregator`),
+KEY `idx_agg_ext` (`aggregator`, `aggregator_external_id`),
+KEY `idx_news` (`news_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;]]></mysqlupgrade>
+	<mysqlenable><![CDATA[]]></mysqlenable>
+	<mysqldisable><![CDATA[]]></mysqldisable>
+	<mysqldelete><![CDATA[DELETE FROM `{prefix}_admin_sections` WHERE `name`='cdnvideohub';]]></mysqldelete>
+	<phpinstall><![CDATA[]]></phpinstall>
+	<phpupgrade><![CDATA[]]></phpupgrade>
+	<phpenable><![CDATA[]]></phpenable>
+	<phpdisable><![CDATA[]]></phpdisable>
+	<phpdelete><![CDATA[]]></phpdelete>
+	<notice><![CDATA[]]></notice>
+	<file name="engine/inc/addnews.php">
+		<operation action="after">
+			<searchcode><![CDATA[$categories_list = CategoryNewsSelection( 0, 0 );]]></searchcode>
+			<replacecode><![CDATA[include ENGINE_DIR . '/cdnvideohub/inc/news.php';]]></replacecode>
+			<enabled>1</enabled>
+		</operation>
+	</file>
+	<file name="engine/inc/editnews.php">
+		<operation action="after">
+			<searchcode><![CDATA[$categories_list = CategoryNewsSelection( $cat_list, 0 );]]></searchcode>
+			<replacecode><![CDATA[include ENGINE_DIR . '/cdnvideohub/inc/news.php';]]></replacecode>
+			<enabled>1</enabled>
+		</operation>
+	</file>
+	<file name="engine/modules/show.full.php">
+		<operation action="before">
+			<searchcode><![CDATA[$category_id = intval( $row['category'] );]]></searchcode>
+			<replacecode><![CDATA[include_once ENGINE_DIR . '/cdnvideohub/lib/siteplayer.php';
+include_once ENGINE_DIR . '/cdnvideohub/index.php';]]></replacecode>
+			<enabled>1</enabled>
+		</operation>
+	</file>
+	<file name="engine/ajax/grab_cron_cdnvideohub.php">
+		<operation action="create">
+			<replacecode><![CDATA[<?php
+/**
+ * Модуль CDN Video Hub
+ *
+ * Файл отвечает за обновление данных на сайте
+ *
+ * @link https://lazydev.pro/
+ * @author LazyDev <email@lazydev.pro>
+ **/
+
+use LazyDev\CDNVideoHub\CDNVideoHub;
+use LazyDev\CDNVideoHub\Base;
+use LazyDev\CDNVideoHub\Cache;
+
+include_once ENGINE_DIR . '/cdnvideohub/loader.php';
+
+if (!$_GET['key'] || $_GET['key'] !== $CDNVideoHubModule[Base::$modName]['config']['grab']['key']) {
+    die();   
+}
+
+$_POST['fromPages'] = $_GET['page'] ?? 1;
+$_POST['added'] = $_POST['notAdded'] = $_POST['pageStep'] = 0;
+$postData = $CDNVideoHubModule[Base::$modName]['config']['grab'];
+$member_id['name'] = $CDNVideoHubModule[Base::$modName]['config']['grab']['grabAuthor'];
+$name = $db->safesql($member_id['name']);
+$member_id['user_id'] = $db->super_query("SELECT user_id FROM " . USERPREFIX . "_users WHERE name='{$name}'")['user_id'];
+$filelog = 'cron';
+
+include_once ENGINE_DIR . '/cdnvideohub/lib/grab.php';
+]]></replacecode>
+			<enabled>1</enabled>
+		</operation>
+	</file>
+</dleplugin>
