@@ -40,6 +40,14 @@ if ($action2 == 'closeall') {
     die();
 }
 
+if ($action2 === 'hideplayer') {
+    $time = time();
+    $db->query("UPDATE " . PREFIX . "_cdnvideohub_license SET hide_player=1, updated_at={$time}");
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'ok'], JSON_UNESCAPED_UNICODE);
+    die();
+}
+
 if ($action2 === 'start') {
     $job = 'licensed_' . time();
     $state = [
@@ -147,10 +155,11 @@ echo <<<HTML
     .cvh-progress { height: 10px; background: #e5e7eb; border-radius: 6px; overflow: hidden; }
     .cvh-progress__bar { height: 10px; width:0%; background:#22c55e; transition: width .2s; }
     .cvh-logs { height: 220px; overflow: auto; background:#0b1020; color:#d1d5db; padding:10px; border-radius:8px; font: 12px/1.45 Consolas,Monaco,monospace; }
-    
+
     .badge { display:inline-block; padding:2px 6px; border-radius:6px; background:#eef2ff; color:#3730a3; font-size:12px; }
     .btn2 { display:inline-block; padding:8px 14px; border-radius:8px; border:0; background:#3b82f6; color:#fff; cursor:pointer; }
     .btn2:disabled { opacity:.6; cursor:not-allowed; }
+    .btn2--ghost { background:#111827; color:#f9fafb; }
     .stats { color:#374151; font-size:13px; }
 </style>
 
@@ -162,6 +171,7 @@ echo <<<HTML
             <div class="cvh-sync">
                 <div class="cvh-flex" style="margin-bottom:10px;">
                     <button id="cvhStart" class="btn2">Синхронизировать</button>
+                    <button id="cvhHide" class="btn2 btn2--ghost" type="button">Скрыть плеер</button>
                     <div class="stats" id="cvhStats">Обработано: 0 • Совпадений: 0 • Вставок: 0</div>
                 </div>
                 <div class="cvh-progress" title="Прогресс">
@@ -320,6 +330,7 @@ echo <<<HTML
 <script>
     (function() {
         var \$start = document.getElementById('cvhStart');
+        var \$hide  = document.getElementById('cvhHide');
         var \$bar   = document.getElementById('cvhBar');
         var \$logs  = document.getElementById('cvhLogs');
         var \$stats = document.getElementById('cvhStats');
@@ -346,6 +357,34 @@ echo <<<HTML
         function ajax(url, data) {
             return fetch(url, { method: 'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8' }, body: new URLSearchParams(data) })
                 .then(function(r){ return r.json(); });
+        }
+
+        function hidePlayerAll() {
+            if (!\$hide) {
+                return;
+            }
+
+            \$hide.disabled = true;
+            ajax('{$admin_url}', { action2:'hideplayer' }).then(function(res){
+                if (res && res.status === 'ok') {
+                    Growl.info({
+                        title: 'Информация',
+                        text: 'Плеер скрыт во всех лицензированных новостях.'
+                    });
+                } else {
+                    Growl.error({
+                        title: 'Информация',
+                        text: 'Не удалось скрыть плеер.'
+                    });
+                }
+            }).catch(function(e){
+                Growl.error({
+                    title: 'Информация',
+                    text: e && e.message ? e.message : String(e)
+                });
+            }).finally(function(){
+                \$hide.disabled = false;
+            });
         }
 
         function step() {
@@ -395,6 +434,8 @@ echo <<<HTML
                 pushLogs([String(e)]);
             });
         });
+
+        \$hide.addEventListener('click', hidePlayerAll);
         
         $('body').on('click', '[data-approve]', function () {
            let id = $(this).data('approve');

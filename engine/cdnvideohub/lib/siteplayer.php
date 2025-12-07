@@ -17,8 +17,18 @@ include ENGINE_DIR . '/cdnvideohub/lib/vars.php';
 
 $playerCDNVideoHub = [];
 $playerCDNInclude = '';
+$licensePlayerHidden = false;
 
-if ($row['id'] && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['api']) && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['partnerId'])) { // Проверка на корректные данные id новости и наличие api токена
+global $db;
+
+if (!empty($row['id'])) {
+    $hiddenState = $db->super_query("SELECT hide_player FROM " . PREFIX . "_cdnvideohub_license WHERE news_id=" . (int)$row['id'] . " LIMIT 1");
+    if (!empty($hiddenState['hide_player'])) {
+        $licensePlayerHidden = true;
+    }
+}
+
+if ($row['id'] && !$licensePlayerHidden && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['api']) && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['partnerId'])) { // Проверка на корректные данные id новости и наличие api токена
     if (Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['kinopoisk']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['imdb']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['myAnimeList']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['myDramaList'])) { // Проверка на заполнение хотя бы одного поля с базой id
         $postCategory = [];
         if (Base::checkIsset($row['category'])) {

@@ -140,11 +140,11 @@ class License
                             $have = $db->super_query($sqlCheck);
                             if ($have && !empty($have['id'])) {
                                 $id = (int)$have['id'];
-                                $db->query("UPDATE {$table} SET aggregator_external_id='".$db->safesql($val)."', title='".$db->safesql($title)."', updated_at={$time} WHERE id={$id}");
+                                $db->query("UPDATE {$table} SET aggregator_external_id='".$db->safesql($val)."', title='".$db->safesql($title)."', hide_player=1, updated_at={$time} WHERE id={$id}");
                             } else {
                                 $db->query(
-                                    "INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, title, created_at, updated_at) VALUES (".
-                                    (int)$row['id'] . ", '".$db->safesql($agg)."', '".$db->safesql($val)."', '".$db->safesql($title)."', {$time}, {$time})"
+                                    "INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, hide_player, title, created_at, updated_at) VALUES (".
+                                    (int)$row['id'] . ", '".$db->safesql($agg)."', '".$db->safesql($val)."', 1, '".$db->safesql($title)."', {$time}, {$time})"
                                 );
                                 $inserted++;
                             }

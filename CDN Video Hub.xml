@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `{prefix}_cdnvideohub_license` (
 `news_id` INT UNSIGNED NOT NULL,
 `aggregator` ENUM('kinopoisk','imdb','mdl','mal') NOT NULL,
 `aggregator_external_id` VARCHAR(64) NOT NULL,
+`hide_player` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
 `title` VARCHAR(255) NOT NULL,
 `created_at` INT UNSIGNED NOT NULL,
 `updated_at` INT UNSIGNED NOT NULL,
@@ -24,11 +25,12 @@ UNIQUE KEY `uniq_news_agg` (`news_id`, `aggregator`),
 KEY `idx_agg_ext` (`aggregator`, `aggregator_external_id`),
 KEY `idx_news` (`news_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;]]></mysqlinstall>
-	<mysqlupgrade><![CDATA[CREATE TABLE IF NOT EXISTS `{prefix}_cdnvideohub_license` (
+        <mysqlupgrade><![CDATA[CREATE TABLE IF NOT EXISTS `{prefix}_cdnvideohub_license` (
 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
 `news_id` INT UNSIGNED NOT NULL,
 `aggregator` ENUM('kinopoisk','imdb','mdl','mal') NOT NULL,
 `aggregator_external_id` VARCHAR(64) NOT NULL,
+`hide_player` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
 `title` VARCHAR(255) NOT NULL,
 `created_at` INT UNSIGNED NOT NULL,
 `updated_at` INT UNSIGNED NOT NULL,
@@ -36,7 +38,8 @@ PRIMARY KEY (`id`),
 UNIQUE KEY `uniq_news_agg` (`news_id`, `aggregator`),
 KEY `idx_agg_ext` (`aggregator`, `aggregator_external_id`),
 KEY `idx_news` (`news_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;]]></mysqlupgrade>
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+ALTER TABLE `{prefix}_cdnvideohub_license` ADD COLUMN IF NOT EXISTS `hide_player` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER `aggregator_external_id`;]]></mysqlupgrade>
 	<mysqlenable><![CDATA[]]></mysqlenable>
 	<mysqldisable><![CDATA[]]></mysqldisable>
 	<mysqldelete><![CDATA[DELETE FROM `{prefix}_admin_sections` WHERE `name`='cdnvideohub';]]></mysqldelete>
