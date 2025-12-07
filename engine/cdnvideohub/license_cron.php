@@ -14,6 +14,10 @@ if (!$_GET['key'] || $_GET['key'] !== $CDNVideoHubModuleConfig['license']['key_l
 
 require_once(ENGINE_DIR . '/classes/plugins.class.php');
 require_once (DLEPlugins::Check(ENGINE_DIR . '/modules/functions.php'));
+require_once ENGINE_DIR . '/cdnvideohub/loader.php';
+
+use LazyDev\CDNVideoHub\License;
+use LazyDev\CDNVideoHub\Cache;
 
 final class Http
 {
@@ -246,6 +250,9 @@ $mapKeyAggregator = [
     'mali' => $CDNVideoHubModuleConfig['myAnimeList']
 ];
 
+$hiddenNews = [];
+License::ensureHidePlayerColumn($db);
+
 try {
     $res = $checker->run();
 
@@ -278,8 +285,10 @@ try {
                 $sql = "SELECT id FROM " . PREFIX . "_post WHERE xfields REGEXP '(^|\\\|\\\|){$xf}\\\|{$val}(\\\|\\\||$)'";
                 $rSql = $db->query($sql);
                 if ($rSql->num_rows > 0) {
+                    License::matchAndStore($db, [$v]);
                     while ($row = $db->get_row($rSql)) {
                         $matched++;
+                        $hiddenNews[] = (int)$row['id'];
                         if ($CDNVideoHubModuleConfig['license']['type'] == 2) {
                             deletenewsbyid($row['id']);
                         } else {
@@ -289,6 +298,17 @@ try {
 
                     break;
                 }
+            }
+        }
+    }
+
+    if ($hiddenNews) {
+        $ids = array_unique(array_filter(array_map('intval', $hiddenNews)));
+        if ($ids) {
+            $idsList = implode(',', $ids);
+            $db->query("UPDATE " . PREFIX . "_cdnvideohub_license SET hide_player=1 WHERE news_id IN ({$idsList})");
+            foreach ($ids as $newsId) {
+                Cache::setFile('1', $newsId, '/player_hide');
             }
         }
     }

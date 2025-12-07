@@ -15,9 +15,23 @@ include_once __DIR__ . '/../loader.php';
 
 use LazyDev\CDNVideoHub\Admin;
 use LazyDev\CDNVideoHub\Base;
+use LazyDev\CDNVideoHub\Cache;
 use LazyDev\CDNVideoHub\License;
 
 $action2 = isset($_REQUEST['action2']) ? $_REQUEST['action2'] : '';
+$langAdmin = $CDNVideoHubModule[Base::$modName]['lang']['admin'] ?? [];
+$langLicense = $langAdmin['license'] ?? [];
+$textHide = $langLicense['hide_player'] ?? 'Скрыть плеер';
+$textShow = $langLicense['show_player'] ?? 'Показать плеер';
+$textHidden = $langLicense['player_hidden'] ?? 'Плеер скрыт';
+$textVisible = $langLicense['player_visible'] ?? 'Плеер активен';
+$textHideAll = $langLicense['hide_all'] ?? 'Скрыть плеер у всех';
+$textHideSuccess = $langLicense['hide_success'] ?? 'Плеер скрыт для новости.';
+$textShowSuccess = $langLicense['show_success'] ?? 'Плеер включен для новости.';
+$textHideAllSuccess = $langLicense['hide_all_success'] ?? 'Плеер скрыт во всех новостях со совпадениями.';
+$textPlayerColumn = $langLicense['player_column'] ?? 'Плеер';
+
+License::ensureHidePlayerColumn($db);
 
 if ($action2 == 'approve') {
     $id = (int)($_REQUEST['id'] ?? -1);
@@ -33,10 +47,49 @@ if ($action2 == 'approve') {
     die();
 }
 
+if ($action2 === 'hideplayer') {
+    $id = (int)($_REQUEST['id'] ?? -1);
+    $hide = (int)($_REQUEST['hide'] ?? 1) === 1 ? 1 : 0;
+    $table = PREFIX . "_cdnvideohub_license";
+    $time = time();
+
+    if ($id > 0) {
+        $exists = $db->super_query("SELECT id FROM {$table} WHERE news_id=" . $id . " LIMIT 1");
+        if ($exists && isset($exists['id'])) {
+            $db->query("UPDATE {$table} SET hide_player={$hide}, updated_at={$time} WHERE id=" . (int)$exists['id']);
+        } else {
+            $db->query("INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, title, hide_player, created_at, updated_at) VALUES (" .
+                $id . ", '', '', '', {$hide}, {$time}, {$time})");
+        }
+
+        Cache::setFile((string)$hide, $id, '/player_hide');
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'ok', 'hide' => $hide, 'id' => $id], JSON_UNESCAPED_UNICODE);
+        die();
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'bad', 'hide' => $id], JSON_UNESCAPED_UNICODE);
+    die();
+}
+
 if ($action2 == 'closeall') {
     $db->query("UPDATE " . PREFIX . "_post p LEFT JOIN " . PREFIX . "_cdnvideohub_license e ON(p.id=e.news_id) SET approve=0 WHERE p.id=e.news_id");
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['status' => 'ok', 'approve' => 'all'], JSON_UNESCAPED_UNICODE);
+    die();
+}
+
+if ($action2 === 'hideall') {
+    $hideCacheDir = ENGINE_DIR . '/' . Base::$modName . '/cache/player_hide';
+    if (!is_dir($hideCacheDir)) {
+        @mkdir($hideCacheDir, 0755, true);
+    }
+    $db->query("UPDATE " . PREFIX . "_cdnvideohub_license SET hide_player=1");
+    Cache::clear('/player_hide');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'ok', 'hide' => 'all'], JSON_UNESCAPED_UNICODE);
     die();
 }
 
@@ -139,7 +192,7 @@ $dataPerPage = 50;
 $i = $startFrom;
 
 $admin_url = $PHP_SELF . '?mod=cdnvideohub&action=license';
-$q = $db->query("SELECT m.id, m.news_id, m.title as t2, m.aggregator, m.aggregator_external_id, p.date, p.title, p.approve, p.alt_name, p.category FROM " . PREFIX . "_cdnvideohub_license m LEFT JOIN " . PREFIX . "_post p ON (p.id=m.news_id) ORDER BY m.id ASC LIMIT {$startFrom}, {$dataPerPage}");
+$q = $db->query("SELECT m.id, m.news_id, m.title as t2, m.aggregator, m.aggregator_external_id, m.hide_player, p.date, p.title, p.approve, p.alt_name, p.category FROM " . PREFIX . "_cdnvideohub_license m LEFT JOIN " . PREFIX . "_post p ON (p.id=m.news_id) ORDER BY m.id ASC LIMIT {$startFrom}, {$dataPerPage}");
 
 echo <<<HTML
 <style>
@@ -174,11 +227,12 @@ echo <<<HTML
     <div class="panel panel-flat">
         <div class="panel panel-default">
             <div class="panel-heading">
-                Лицензированный контент на сайте 
+                Лицензированный контент на сайте
                 <div style="margin-top: -1.028rem;"  class="heading-elements">
                     <button class="btn bg-success btn-sm btn-raised" type="button" data-closeall="1">Снять все новости с публикации</button>
+                    <button class="btn bg-slate-600 btn-sm btn-raised" type="button" data-hideall="1">{$textHideAll}</button>
                 </div>
-		    </div>
+                    </div>
         </div>
         <div class="table-responsive">
             <table class="table table-xs table-hover">
@@ -190,6 +244,7 @@ echo <<<HTML
                         <th>Агрегатор</th>
                         <th>ID</th>
                         <th>Статус</th>
+                        <th>{$textPlayerColumn}</th>
                         <th class="text-center"><i class="fa fa-cog"></i></th>
                     </tr>
                 </thead>
@@ -197,7 +252,7 @@ echo <<<HTML
 HTML;
 if (!$q->num_rows) {
 echo <<<HTML
-    <tr><td colspan="5">Пока нет данных.</td></tr>
+    <tr><td colspan="8">Пока нет данных.</td></tr>
 HTML;
 } else {
     $countNews = $db->super_query("SELECT COUNT(*) as count FROM " . PREFIX . "_cdnvideohub_license m LEFT JOIN " . PREFIX . "_post p ON (p.id=m.news_id)")['count'];
@@ -235,6 +290,16 @@ HTML;
             'text'  => $isApproved ? 'Снять с публикации' : 'Снято с публикации',
             'id'    => $isApproved ? (int)$row['news_id'] : -1,
         ];
+        $isHidden = (int)$row['hide_player'] === 1;
+        $hideData = [
+            'label' => $isHidden
+                ? "<span class='badge' style='background:#fee2e2;color:#991b1b;'>{$textHidden}</span>"
+                : "<span class='badge' style='background:#ecfdf3;color:#166534;'>{$textVisible}</span>",
+            'btn'   => $isHidden ? 'bg-success-600' : 'bg-warning-600',
+            'icon'  => $isHidden ? 'fa-eye' : 'fa-eye-slash',
+            'text'  => $isHidden ? $textShow : $textHide,
+            'hide'  => $isHidden ? 0 : 1,
+        ];
 echo <<<HTML
 <tr>
         <td><a href="{$PHP_SELF}?mod=editnews&action=editnews&id={$row['news_id']}" target="_blank">{$row['news_id']}</a></td>
@@ -243,7 +308,11 @@ echo <<<HTML
         <td><span class="badge">{$row['aggregator']}</span></td>
         <td>{$row['aggregator_external_id']}</td>
         <td>{$approveData['html']}</td>
-        <td class="text-center"><button data-approve="{$approveData['id']}" class="btn {$approveData['btn']} btn-sm btn-raised legitRipple"><i class="fa {$approveData['icon']}"></i> {$approveData['text']}</button></td>
+        <td>{$hideData['label']}</td>
+        <td class="text-center" style="display:flex; gap:6px; justify-content:center;">
+            <button data-approve="{$approveData['id']}" class="btn {$approveData['btn']} btn-sm btn-raised legitRipple"><i class="fa {$approveData['icon']}"></i> {$approveData['text']}</button>
+            <button data-hideplayer="{$row['news_id']}" data-hide="{$hideData['hide']}" class="btn {$hideData['btn']} btn-sm btn-raised legitRipple"><i class="fa {$hideData['icon']}"></i> {$hideData['text']}</button>
+        </td>
     </tr>
 HTML;
     }
@@ -434,7 +503,41 @@ echo <<<HTML
             });
             HideLoading('');
        });
-        
+
+        $('body').on('click', '[data-hideplayer]', function () {
+            let id = $(this).data('hideplayer');
+            let hide = $(this).data('hide');
+
+            ShowLoading('');
+            $.post('{$admin_url}', {action2: 'hideplayer', id: id, hide: hide, dle_hash: dle_login_hash}, function(data) {
+                if (data.status == 'bad') {
+                    Growl.error({
+                        title: 'Информация',
+                        text: 'Произошла ошибка.'
+                    });
+                } else {
+                    Growl.info({
+                        title: 'Информация',
+                        text: hide ? '{$textHideSuccess}' : '{$textShowSuccess}'
+                    });
+                    setTimeout(function(){ location.reload(); }, 300);
+                }
+            });
+            HideLoading('');
+        });
+
+        $('body').on('click', '[data-hideall]', function () {
+            ShowLoading('');
+            $.post('{$admin_url}', {action2: 'hideall', dle_hash: dle_login_hash}, function(data) {
+                Growl.info({
+                    title: 'Информация',
+                    text: '{$textHideAllSuccess}'
+                });
+                setTimeout(function(){ location.reload(); }, 300);
+            });
+            HideLoading('');
+        });
+
     })();
 </script>
 HTML;

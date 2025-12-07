@@ -81,6 +81,16 @@ class License
         return is_array($data) ? $data : [];
     }
 
+    public static function ensureHidePlayerColumn($db)
+    {
+        $table = PREFIX . "_cdnvideohub_license";
+
+        $isExists = $db->super_query("SHOW COLUMNS FROM {$table} LIKE 'hide_player'");
+        if (!$isExists || !isset($isExists['Field'])) {
+            $db->query("ALTER TABLE {$table} ADD COLUMN hide_player TINYINT(1) NOT NULL DEFAULT 0 AFTER title");
+        }
+    }
+
     public static function matchAndStore($db, $apiItems)
     {
         global $CDNVideoHubModule;
@@ -97,6 +107,7 @@ class License
         ];
 
         $table = PREFIX . "_cdnvideohub_license";
+        self::ensureHidePlayerColumn($db);
 
         foreach ($apiItems as $item) {
             if (empty($item['externalIds']) || !is_array($item['externalIds'])) {
@@ -140,11 +151,11 @@ class License
                             $have = $db->super_query($sqlCheck);
                             if ($have && !empty($have['id'])) {
                                 $id = (int)$have['id'];
-                                $db->query("UPDATE {$table} SET aggregator_external_id='".$db->safesql($val)."', title='".$db->safesql($title)."', updated_at={$time} WHERE id={$id}");
+                                $db->query("UPDATE {$table} SET aggregator_external_id='".$db->safesql($val)."', title='".$db->safesql($title)."', hide_player=1, updated_at={$time} WHERE id={$id}");
                             } else {
                                 $db->query(
-                                    "INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, title, created_at, updated_at) VALUES (".
-                                    (int)$row['id'] . ", '".$db->safesql($agg)."', '".$db->safesql($val)."', '".$db->safesql($title)."', {$time}, {$time})"
+                                    "INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, title, hide_player, created_at, updated_at) VALUES (".
+                                    (int)$row['id'] . ", '".$db->safesql($agg)."', '".$db->safesql($val)."', '".$db->safesql($title)."', 1, {$time}, {$time})"
                                 );
                                 $inserted++;
                             }
