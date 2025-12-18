@@ -11,14 +11,39 @@
 use LazyDev\CDNVideoHub\CDNVideoHub;
 use LazyDev\CDNVideoHub\Base;
 use LazyDev\CDNVideoHub\Cache;
+use LazyDev\CDNVideoHub\License;
 
 include_once ENGINE_DIR . '/cdnvideohub/loader.php';
 include ENGINE_DIR . '/cdnvideohub/lib/vars.php';
 
 $playerCDNVideoHub = [];
 $playerCDNInclude = '';
+$playerCDNHidden = false;
 
-if ($row['id'] && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['api']) && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['partnerId'])) { // Проверка на корректные данные id новости и наличие api токена
+global $db;
+
+static $hideColumnChecked = false;
+if (!$hideColumnChecked) {
+    License::ensureHidePlayerColumn($db);
+    $hideColumnChecked = true;
+}
+
+if (!empty($row['id'])) {
+    $playerCDNHidden = Cache::getFile($row['id'], '/player_hide');
+    if ($playerCDNHidden === false) {
+        $licenseHide = $db->super_query("SELECT hide_player FROM " . PREFIX . "_cdnvideohub_license WHERE news_id=" . (int)$row['id'] . " LIMIT 1");
+        $playerCDNHidden = isset($licenseHide['hide_player']) ? (int)$licenseHide['hide_player'] : 0;
+        Cache::setFile((string)$playerCDNHidden, $row['id'], '/player_hide');
+    } else {
+        $playerCDNHidden = (int)$playerCDNHidden;
+    }
+}
+
+if ($playerCDNHidden) {
+    $playerCDNInclude = '';
+}
+
+if (!$playerCDNHidden && $row['id'] && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['api']) && Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['partnerId'])) { // Проверка на корректные данные id новости и наличие api токена
     if (Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['kinopoisk']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['imdb']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['myAnimeList']) || Base::checkIsset($CDNVideoHubModule[Base::$modName]['config']['myDramaList'])) { // Проверка на заполнение хотя бы одного поля с базой id
         $postCategory = [];
         if (Base::checkIsset($row['category'])) {

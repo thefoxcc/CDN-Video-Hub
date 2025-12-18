@@ -39,12 +39,16 @@ class Cache
 	 * @param 	 string    $dir
 	 *
 	 **/
-	static function setFile($data, $id, $dir)
-	{
-		$dir = ENGINE_DIR . '/' . Base::$modName . '/cache' . $dir;
+        static function setFile($data, $id, $dir)
+        {
+                $dir = ENGINE_DIR . '/' . Base::$modName . '/cache' . $dir;
 
-		$file = $dir . '/' . $id . '.cache';
-		file_put_contents($file, $data, LOCK_EX);
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+
+                $file = $dir . '/' . $id . '.cache';
+                file_put_contents($file, $data, LOCK_EX);
 		@chmod($file, 0666);
 		return true;
 	}
