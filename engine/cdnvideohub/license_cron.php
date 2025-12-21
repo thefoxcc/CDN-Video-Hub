@@ -291,7 +291,7 @@ try {
                         $hiddenNews[] = (int)$row['id'];
                         if ($CDNVideoHubModuleConfig['license']['type'] == 2) {
                             deletenewsbyid($row['id']);
-                        } else {
+                        } elseif ($CDNVideoHubModuleConfig['license']['type'] == 1) {
                             $db->query("UPDATE " . PREFIX . "_post SET approve=0 WHERE id='{$row['id']}'");
                         }
                     }
