@@ -115,6 +115,9 @@ return [
 			'disableVoice' => 'Пропуск озвучек',
 			'disableVoice_descr' => 'Выберите озвучки которые модуль будет игнорировать',
 			'voiceSelect' => 'Выбор озвучек',
+			'license_type_moderate' => 'Отправлять на модерацию',
+			'license_type_delete' => 'Удалять из сайта',
+			'license_type_hide' => 'Скрыть плеер',
 
 			'p.title' => 'Заголовок новости',
 			'p.cat' => 'Категории',

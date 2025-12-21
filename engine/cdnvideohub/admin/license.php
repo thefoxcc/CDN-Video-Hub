@@ -74,6 +74,37 @@ if ($action2 === 'hideplayer') {
     die();
 }
 
+if ($action2 === 'addlicense') {
+    $id = (int)($_REQUEST['news_id'] ?? -1);
+    $hide = (int)($_REQUEST['hide_player'] ?? 0) === 1 ? 1 : 0;
+    $table = PREFIX . "_cdnvideohub_license";
+    $time = time();
+
+    if ($id > 0) {
+        $exists = $db->super_query("SELECT id FROM {$table} WHERE news_id=" . $id . " LIMIT 1");
+        if ($exists && isset($exists['id'])) {
+            $db->query("UPDATE {$table} SET hide_player={$hide}, updated_at={$time} WHERE id=" . (int)$exists['id']);
+            Cache::setFile((string)$hide, $id, '/player_hide');
+
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['status' => 'exists', 'id' => $id, 'hide' => $hide], JSON_UNESCAPED_UNICODE);
+            die();
+        }
+
+        $db->query("INSERT INTO {$table} (news_id, aggregator, aggregator_external_id, title, hide_player, created_at, updated_at) VALUES (" .
+            $id . ", '', '', '', {$hide}, {$time}, {$time})");
+        Cache::setFile((string)$hide, $id, '/player_hide');
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'ok', 'id' => $id, 'hide' => $hide], JSON_UNESCAPED_UNICODE);
+        die();
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'bad', 'id' => $id], JSON_UNESCAPED_UNICODE);
+    die();
+}
+
 if ($action2 == 'closeall') {
     $db->query("UPDATE " . PREFIX . "_post p LEFT JOIN " . PREFIX . "_cdnvideohub_license e ON(p.id=e.news_id) SET approve=0 WHERE p.id=e.news_id");
     header('Content-Type: application/json; charset=utf-8');
@@ -205,6 +236,8 @@ echo <<<HTML
     .btn2 { display:inline-block; padding:8px 14px; border-radius:8px; border:0; background:#3b82f6; color:#fff; cursor:pointer; }
     .btn2:disabled { opacity:.6; cursor:not-allowed; }
     .stats { color:#374151; font-size:13px; }
+    .cvh-license-form { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+    .cvh-license-form input[type="number"] { width: 140px; }
 </style>
 
 <div class="box">
@@ -233,6 +266,19 @@ echo <<<HTML
                     <button class="btn bg-slate-600 btn-sm btn-raised" type="button" data-hideall="1">{$textHideAll}</button>
                 </div>
                     </div>
+            <div class="panel-body" style="padding-top:0;">
+                <form class="cvh-license-form" id="cvhAddLicenseForm">
+                    <label>
+                        ID новости
+                        <input type="number" min="1" name="news_id" required class="form-control input-sm" placeholder="123">
+                    </label>
+                    <label style="margin:0;">
+                        <input type="checkbox" name="hide_player" value="1">
+                        {$textHide}
+                    </label>
+                    <button type="submit" class="btn bg-primary btn-sm btn-raised">Добавить</button>
+                </form>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-xs table-hover">
@@ -524,6 +570,49 @@ echo <<<HTML
                 }
             });
             HideLoading('');
+        });
+
+        $('#cvhAddLicenseForm').on('submit', function (e) {
+            e.preventDefault();
+            var data = $(this).serializeArray().reduce(function (acc, item) {
+                acc[item.name] = item.value;
+                return acc;
+            }, {});
+            data.action2 = 'addlicense';
+            data.dle_hash = dle_login_hash;
+            data.hide_player = data.hide_player ? 1 : 0;
+
+            if (!data.news_id) {
+                Growl.error({
+                    title: 'Информация',
+                    text: 'Укажите ID новости.'
+                });
+                return;
+            }
+
+            ShowLoading('');
+            $.post('{$admin_url}', data, function (response) {
+                if (response.status === 'bad') {
+                    Growl.error({
+                        title: 'Информация',
+                        text: 'Произошла ошибка.'
+                    });
+                } else if (response.status === 'exists') {
+                    Growl.info({
+                        title: 'Информация',
+                        text: 'Запись уже существует, обновлены настройки.'
+                    });
+                    setTimeout(function(){ location.reload(); }, 300);
+                } else {
+                    Growl.info({
+                        title: 'Информация',
+                        text: 'Запись добавлена.'
+                    });
+                    setTimeout(function(){ location.reload(); }, 300);
+                }
+            }).always(function () {
+                HideLoading('');
+            });
         });
 
         $('body').on('click', '[data-hideall]', function () {

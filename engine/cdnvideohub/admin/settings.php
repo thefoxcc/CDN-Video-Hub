@@ -105,7 +105,16 @@ HTML;
 Admin::row(
     'Тип работы с лицензированным контентом',
     'Выберите что делать с лицензированным контентом при обнаружении его на сайте',
-    Admin::select('license[type]', [1 => 'Отправлять на модерацию', 2 => 'Удалять из сайта'], $CDNVideoHubModule[$modName]['config']['license']['type'] ?? 1, [true, false, false, false, true])
+    Admin::select(
+        'license[type]',
+        [
+            1 => $CDNVideoHubModule[$modName]['lang']['admin']['settings']['license_type_moderate'],
+            2 => $CDNVideoHubModule[$modName]['lang']['admin']['settings']['license_type_delete'],
+            3 => $CDNVideoHubModule[$modName]['lang']['admin']['settings']['license_type_hide'],
+        ],
+        $CDNVideoHubModule[$modName]['config']['license']['type'] ?? 3,
+        [true, false, false, false, true]
+    )
 );
 $seed = str_split('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
 shuffle($seed);
