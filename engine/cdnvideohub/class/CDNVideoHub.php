@@ -37,27 +37,59 @@ class CDNVideoHub
             "Authorization: Bearer " . Data::get('api', 'config'),
             "Accept: application/json",
             "Content-Type: application/json",
+            "User-Agent: dle module"
         ];
 
-		if (function_exists('curl_init')) {
-			$ch = curl_init();
-			curl_setopt($ch, CURLOPT_URL, $link);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 60);
-			curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-			curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $maxRetries = 3;
+        $retryCount = 0;
+        if (function_exists('curl_init')) {
+            while ($retryCount < $maxRetries) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $link);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 60);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                $output = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                $headersStr = substr($output, 0, $headerSize);
+                curl_close($ch);
 
-			$output = curl_exec($ch);
-			curl_close($ch);
-			return $output;
-		}
+                if ($httpCode === 429) {
+                    $retryAfter = 1;
+                    if (!empty($headersStr)) {
+                        $headersArray = explode("\r\n", $headersStr);
+                        foreach ($headersArray as $header) {
+                            if (stripos($header, 'Retry-After:') === 0) {
+                                $retryAfterValue = trim(substr($header, 12));
+                                if (is_numeric($retryAfterValue)) {
+                                    $retryAfter = (int)$retryAfterValue;
+                                }
+                                break;
+                            }
+                        }
+                    }
 
-		$output = file_get_contents($link);
-		return $output;
-	}
+                    $retryCount++;
+
+                    if ($retryCount >= $maxRetries) {
+                        return $output;
+                    }
+
+                    sleep($retryAfter);
+                    continue;
+                }
+
+                return $output;
+            }
+        }
+
+        return file_get_contents($link);
+    }
 
 	/**
 	 * Заполнение тегов-блоков
